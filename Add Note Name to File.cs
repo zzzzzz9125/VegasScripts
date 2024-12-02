@@ -51,22 +51,21 @@ namespace Test_Script
 
             foreach (Media m in mediaList)
             {
-                string newFilePath = ModifyWavFile(m.FilePath, noteName);
-                if (!File.Exists(newFilePath))
+                string newFilePath = ModifyFile(m.FilePath, noteName);
+                if (!File.Exists(newFilePath) || Path.GetExtension(newFilePath).ToLower() == ".sfl")
                 {
                     continue;
                 }
                 m.ReplaceWith(Media.CreateInstance(myVegas.Project, newFilePath));
             }
-            myVegas.Project.MediaPool.OpenAllMedia();
         }
 
-        static string ModifyWavFile(string filePath, string pitch)
+        static string ModifyFile(string filePath, string pitch)
         {
-            byte[] data = File.ReadAllBytes(filePath);
+            byte[] data = File.ReadAllBytes(filePath), sizeData = null;
 
             byte[] riffPrefix = { 0x52, 0x49, 0x46, 0x46 };
-            bool isWav = true;
+            bool isWav = true, isMp3 = false;
             for (int i = 0; i < riffPrefix.Length; i++)
             {
                 if (data[i] != riffPrefix[i])
@@ -75,70 +74,106 @@ namespace Test_Script
                 }
             }
 
-            string sflPath = filePath + ".sfl";
+            string newPath = Path.Combine(Path.GetDirectoryName(filePath), string.Format("{0}_{1}{2}", Path.GetFileNameWithoutExtension(filePath), pitch, Path.GetExtension(filePath)));
+
             if (!isWav)
             {
-                bool hasRiff = false;
-                if (File.Exists(sflPath))
+                if (Path.GetExtension(filePath).ToLower() == ".mp3")
                 {
-                    data = File.ReadAllBytes(sflPath);
-                    hasRiff = true;
-                    for (int i = 0; i < riffPrefix.Length; i++)
+                    isMp3 = true;
+                    bool hasId3 = true;
+                    byte[] id3Prefix = { 0x49, 0x44, 0x33 };
+                    for (int i = 0; i < id3Prefix.Length; i++)
                     {
-                        if (data[i] != riffPrefix[i])
+                        if (data[i] != id3Prefix[i])
                         {
-                            hasRiff = false;
+                            hasId3 = false;
+                            break;
                         }
                     }
+
+                    if (!hasId3)
+                    {
+                        id3Prefix = new byte[] {
+                            0x49, 0x44, 0x33, 0x03, 0x00, 0x00, // ID3v2.3
+                            0x00, 0x00, 0x00, 0x00              // Size
+                        };
+                        data = InsertBytes(data, id3Prefix);
+                    }
+
+                    sizeData = ConvertIntToID3v2Size(ConvertID3v2Size(data) + 0x27);
                 }
 
-                byte[] nameBytes = System.Text.Encoding.Default.GetBytes(Path.GetFileName(filePath));
-
-                if (!hasRiff)
+                else
                 {
-                    riffPrefix = new byte[] { 0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00,
-                                              0x53, 0x46, 0x50, 0x4C, 0x53, 0x46, 0x50, 0x49,
-                                              0x00, 0x00, 0x00, 0x00 };
-                    data = new byte[riffPrefix.Length + (nameBytes.Length / 2 + 1) * 2];
-                    Array.Copy(riffPrefix, 0, data, 0, riffPrefix.Length);
-                    Array.Copy(nameBytes, 0, data, riffPrefix.Length, nameBytes.Length);
-                }
+                    newPath = filePath + ".sfl";
+                    bool hasRiff = false;
+                    if (File.Exists(newPath))
+                    {
+                        data = File.ReadAllBytes(newPath);
+                        hasRiff = true;
+                        for (int i = 0; i < riffPrefix.Length; i++)
+                        {
+                            if (data[i] != riffPrefix[i])
+                            {
+                                hasRiff = false;
+                                break;
+                            }
+                        }
+                    }
 
-                byte[] nameLengthBytes = BitConverter.GetBytes((nameBytes.Length / 2 * 2) + 1);
-                Array.Copy(nameLengthBytes, 0, data, 16, nameLengthBytes.Length);
+                    byte[] nameBytes = System.Text.Encoding.Default.GetBytes(Path.GetFileName(filePath));
+
+                    if (!hasRiff)
+                    {
+                        riffPrefix = new byte[] {
+                            0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00,
+                            0x53, 0x46, 0x50, 0x4C, 0x53, 0x46, 0x50, 0x49,
+                            0x00, 0x00, 0x00, 0x00
+                        };
+                        data = InsertBytes(nameBytes, riffPrefix, 0, 2 - (nameBytes.Length % 2));
+                    }
+
+                    byte[] nameLengthBytes = BitConverter.GetBytes((nameBytes.Length / 2 * 2) + 1);
+                    Array.Copy(nameLengthBytes, 0, data, 16, nameLengthBytes.Length);
+                }
             }
 
-            byte[] targetData = { 0x61, 0x63, 0x69, 0x64, 0x18, 0x00, 0x00, 0x00 };
-            int position = FindBytes(data, targetData);
+            byte[] acidPrefix = isMp3 ? new byte[]  {
+                0x47, 0x45, 0x4F, 0x42, 0x00, 0x00, 0x00, 0x27,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x53, 0x66, 0x41,
+                0x63, 0x69, 0x64, 0x43, 0x68, 0x75, 0x6E, 0x6B,
+                0x00
+            } : new byte[] { 0x61, 0x63, 0x69, 0x64, 0x18, 0x00, 0x00, 0x00 };
+
+            int position = FindBytes(data, acidPrefix);
 
             if (position != -1)
             {
-                data[position + 12] = pitchValues[pitch];
-                data[position + 8] = 0x02;
+                data[position + acidPrefix.Length + 4] = pitchValues[pitch];
+                data[position + acidPrefix.Length] = 0x02; // Avoid problems with some FL Studio output files
             }
             else
             {
-                byte[] additionalData = {
-                    0x61, 0x63, 0x69, 0x64, 0x18, 0x00, 0x00, 0x00,
-                    0x02, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x80,
+                byte[] acidData = {
+                    0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
                     0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
                     0x04, 0x00, 0x04, 0x00, 0x00, 0x00, 0xF0, 0x42
                 };
-                additionalData[12] = pitchValues[pitch];
-                byte[] newData = new byte[data.Length + additionalData.Length];
-                Array.Copy(data, 0, newData, 0, data.Length);
-                Array.Copy(additionalData, 0, newData, data.Length, additionalData.Length);
-                data = newData;
+                acidData[4] = pitchValues[pitch];
+                acidData = InsertBytes(acidData, acidPrefix);
+                data = isMp3 ? InsertBytes(data, acidData, 10) : InsertBytes(acidData, data);
             }
 
-            byte[] riffData = BitConverter.GetBytes(data.Length - 8);
-            Array.Copy(riffData, 0, data, 4, riffData.Length);
-
-            string newPath = isWav ? Path.Combine(Path.GetDirectoryName(filePath), string.Format("{0}_{1}{2}", Path.GetFileNameWithoutExtension(filePath), pitch, Path.GetExtension(filePath))) : filePath;
+            if (!isMp3)
+            {
+                sizeData = BitConverter.GetBytes(data.Length - 8);
+            }
+            Array.Copy(sizeData, 0, data, isMp3 ? 6 : 4, sizeData.Length);
 
             try
             {
-                using (FileStream fileStream = new FileStream(isWav ? newPath : sflPath, FileMode.Create, FileAccess.Write))
+                using (FileStream fileStream = new FileStream(newPath, FileMode.Create, FileAccess.Write))
                 {
                     fileStream.Write(data, 0, data.Length);
                 }
@@ -149,6 +184,26 @@ namespace Test_Script
             }
 
             return newPath;
+        }
+
+        static int ConvertID3v2Size(byte[] bytes, int offset = 6)
+        {
+            int size = 0;
+            size = (bytes[offset] & 0x7F) << 21;
+            size |= (bytes[offset + 1] & 0x7F) << 14;
+            size |= (bytes[offset + 2] & 0x7F) << 7;
+            size |= (bytes[offset + 3] & 0x7F);
+            return size;
+        }
+
+        static byte[] ConvertIntToID3v2Size(int size)
+        {
+            byte[] bytes = new byte[4];
+            bytes[0] = (byte)((size >> 21) & 0x7F);
+            bytes[1] = (byte)((size >> 14) & 0x7F);
+            bytes[2] = (byte)((size >> 7) & 0x7F);
+            bytes[3] = (byte)(size & 0x7F);
+            return bytes;
         }
 
         static int FindBytes(byte[] array, byte[] pattern)
@@ -172,6 +227,15 @@ namespace Test_Script
                 }
             }
             return -1;
+        }
+
+        static byte[] InsertBytes(byte[] data1, byte[] data2, int insertPos = 0, int extendLength = 0)
+        {
+            byte[] newData = new byte[data1.Length + data2.Length + extendLength];
+            Array.Copy(data1, 0, newData, 0, insertPos);
+            Array.Copy(data2, 0, newData, insertPos, data2.Length);
+            Array.Copy(data1, insertPos, newData, data2.Length + insertPos, data1.Length - insertPos);
+            return newData;
         }
 
         static string GetBaseNoteName()
