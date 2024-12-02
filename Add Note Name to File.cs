@@ -76,10 +76,7 @@ namespace Test_Script
             switch (type)
             {
                 case MarkerFileType.WAV:
-                    break;
-
                 case MarkerFileType.FLAC:
-                    data[4] = 0x00;
                     break;
 
                 case MarkerFileType.MP3:
@@ -113,6 +110,10 @@ namespace Test_Script
                         data = InsertBytes(nameBytes, riffPrefix, 0, 2 - (nameBytes.Length % 2));
                     }
                     byte[] nameLengthBytes = BitConverter.GetBytes((nameBytes.Length / 2 * 2) + 1);
+                    if (!BitConverter.IsLittleEndian)
+                    {
+                        Array.Reverse(nameLengthBytes);
+                    }
                     Array.Copy(nameLengthBytes, 0, data, 16, nameLengthBytes.Length);
                     break;
             }
@@ -123,7 +124,7 @@ namespace Test_Script
                 0x63, 0x69, 0x64, 0x43, 0x68, 0x75, 0x6E, 0x6B,
                 0x00 
                 } : type == MarkerFileType.FLAC ? new byte[]  {
-                0x02, 0x00, 0x00, 0x54, 0x53, 0x4F, 0x4E, 0x59,
+            /*0x02,*/ 0x00, 0x00, 0x54, 0x53, 0x4F, 0x4E, 0x59,
                 0x1C, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00,
                 0x01, 0x00, 0x00, 0x00, 0x94, 0xF4, 0x52, 0x31,
                 0x93, 0xC9, 0x31, 0x4B, 0x96, 0xE1, 0xA3, 0x3C,
@@ -147,6 +148,17 @@ namespace Test_Script
                     byte[] sizeData = ConvertIntToID3v2Size(ConvertID3v2Size(data) + 0x27);
                     Array.Copy(sizeData, 0, data, 6, sizeData.Length);
                 }
+                else if (type == MarkerFileType.FLAC)
+                {
+                    byte value = 0x02;
+                    bool last = data[4] >= 0x80;
+                    if (last)
+                    {
+                        data[4] -= 0x80;
+                        value += 0x80;
+                    }
+                    InsertBytes(acidPrefix, new byte[]  { value });
+                }
                 
                 byte[] acidData = {
                     0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
@@ -161,6 +173,10 @@ namespace Test_Script
             if (type == MarkerFileType.WAV || type == MarkerFileType.SFL)
             {
                 byte[] sizeData = BitConverter.GetBytes(data.Length - 8);
+                if (!BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(sizeData);
+                }
                 Array.Copy(sizeData, 0, data, 4, sizeData.Length);
             }
 
