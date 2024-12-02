@@ -157,7 +157,7 @@ namespace Test_Script
                         data[4] -= 0x80;
                         value += 0x80;
                     }
-                    InsertBytes(acidPrefix, new byte[]  { value });
+                    acidPrefix = InsertBytes(acidPrefix, new byte[]  { value });
                 }
                 
                 byte[] acidData = {
