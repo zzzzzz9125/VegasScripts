@@ -8,6 +8,8 @@ using ScriptPortal.Vegas;  // "ScriptPortal.Vegas" for Magix Vegas Pro 14 or abo
 
 namespace Test_Script
 {
+    public enum MarkerFileType { SFL, WAV, FLAC, MP3 };
+
     public class Class
     {
         public Vegas myVegas;
@@ -62,37 +64,27 @@ namespace Test_Script
 
         static string ModifyFile(string filePath, string pitch)
         {
-            byte[] data = File.ReadAllBytes(filePath), sizeData = null;
+            byte[] data = File.ReadAllBytes(filePath);
 
-            byte[] riffPrefix = { 0x52, 0x49, 0x46, 0x46 };
-            bool isWav = true, isMp3 = false;
-            for (int i = 0; i < riffPrefix.Length; i++)
-            {
-                if (data[i] != riffPrefix[i])
-                {
-                    isWav = false;
-                }
-            }
+            byte[] riffPrefix = { 0x52, 0x49, 0x46, 0x46 }, flacPrefix = { 0x66, 0x4C, 0x61, 0x43 };
+            MarkerFileType type = IsContainAt(data, riffPrefix, 0) ? MarkerFileType.WAV
+                                : IsContainAt(data, flacPrefix, 0) ? MarkerFileType.FLAC
+                                : Path.GetExtension(filePath).ToLower() == ".mp3" ? MarkerFileType.MP3 : MarkerFileType.SFL;
 
             string newPath = Path.Combine(Path.GetDirectoryName(filePath), string.Format("{0}_{1}{2}", Path.GetFileNameWithoutExtension(filePath), pitch, Path.GetExtension(filePath)));
 
-            if (!isWav)
+            switch (type)
             {
-                if (Path.GetExtension(filePath).ToLower() == ".mp3")
-                {
-                    isMp3 = true;
-                    bool hasId3 = true;
-                    byte[] id3Prefix = { 0x49, 0x44, 0x33 };
-                    for (int i = 0; i < id3Prefix.Length; i++)
-                    {
-                        if (data[i] != id3Prefix[i])
-                        {
-                            hasId3 = false;
-                            break;
-                        }
-                    }
+                case MarkerFileType.WAV:
+                    break;
 
-                    if (!hasId3)
+                case MarkerFileType.FLAC:
+                    data[4] = 0x00;
+                    break;
+
+                case MarkerFileType.MP3:
+                    byte[] id3Prefix = { 0x49, 0x44, 0x33 };
+                    if (!IsContainAt(data, id3Prefix, 0))
                     {
                         id3Prefix = new byte[] {
                             0x49, 0x44, 0x33, 0x03, 0x00, 0x00, // ID3v2.3
@@ -100,30 +92,17 @@ namespace Test_Script
                         };
                         data = InsertBytes(data, id3Prefix);
                     }
+                    break;
 
-                    sizeData = ConvertIntToID3v2Size(ConvertID3v2Size(data) + 0x27);
-                }
-
-                else
-                {
+                default:
                     newPath = filePath + ".sfl";
                     bool hasRiff = false;
                     if (File.Exists(newPath))
                     {
                         data = File.ReadAllBytes(newPath);
-                        hasRiff = true;
-                        for (int i = 0; i < riffPrefix.Length; i++)
-                        {
-                            if (data[i] != riffPrefix[i])
-                            {
-                                hasRiff = false;
-                                break;
-                            }
-                        }
+                        hasRiff = IsContainAt(data, riffPrefix, 0);
                     }
-
                     byte[] nameBytes = System.Text.Encoding.Default.GetBytes(Path.GetFileName(filePath));
-
                     if (!hasRiff)
                     {
                         riffPrefix = new byte[] {
@@ -133,18 +112,26 @@ namespace Test_Script
                         };
                         data = InsertBytes(nameBytes, riffPrefix, 0, 2 - (nameBytes.Length % 2));
                     }
-
                     byte[] nameLengthBytes = BitConverter.GetBytes((nameBytes.Length / 2 * 2) + 1);
                     Array.Copy(nameLengthBytes, 0, data, 16, nameLengthBytes.Length);
-                }
+                    break;
             }
 
-            byte[] acidPrefix = isMp3 ? new byte[]  {
+            byte[] acidPrefix = type == MarkerFileType.MP3 ? new byte[]  {
                 0x47, 0x45, 0x4F, 0x42, 0x00, 0x00, 0x00, 0x27,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x53, 0x66, 0x41,
                 0x63, 0x69, 0x64, 0x43, 0x68, 0x75, 0x6E, 0x6B,
-                0x00
-            } : new byte[] { 0x61, 0x63, 0x69, 0x64, 0x18, 0x00, 0x00, 0x00 };
+                0x00 
+                } : type == MarkerFileType.FLAC ? new byte[]  {
+                0x02, 0x00, 0x00, 0x54, 0x53, 0x4F, 0x4E, 0x59,
+                0x1C, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00,
+                0x01, 0x00, 0x00, 0x00, 0x94, 0xF4, 0x52, 0x31,
+                0x93, 0xC9, 0x31, 0x4B, 0x96, 0xE1, 0xA3, 0x3C,
+                0x79, 0xC7, 0xA8, 0xD0, 0x1C, 0x00, 0x00, 0x00,
+                0x64, 0x00, 0x00, 0x00, 0x94, 0xF4, 0x52, 0x31,
+                0x93, 0xC9, 0x31, 0x4B, 0x96, 0xE1, 0xA3, 0x3C,
+                0x79, 0xC7, 0xA8, 0xD0, 0x18, 0x00, 0x00, 0x00
+                } : new byte[] { 0x61, 0x63, 0x69, 0x64, 0x18, 0x00, 0x00, 0x00 };
 
             int position = FindBytes(data, acidPrefix);
 
@@ -155,6 +142,12 @@ namespace Test_Script
             }
             else
             {
+                if (type == MarkerFileType.MP3)
+                {
+                    byte[] sizeData = ConvertIntToID3v2Size(ConvertID3v2Size(data) + 0x27);
+                    Array.Copy(sizeData, 0, data, 6, sizeData.Length);
+                }
+                
                 byte[] acidData = {
                     0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
                     0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
@@ -162,14 +155,14 @@ namespace Test_Script
                 };
                 acidData[4] = pitchValues[pitch];
                 acidData = InsertBytes(acidData, acidPrefix);
-                data = isMp3 ? InsertBytes(data, acidData, 10) : InsertBytes(acidData, data);
+                data = InsertBytes(data, acidData, type == MarkerFileType.FLAC ? 42 : type == MarkerFileType.MP3 ? 10 : data.Length);
             }
 
-            if (!isMp3)
+            if (type == MarkerFileType.WAV || type == MarkerFileType.SFL)
             {
-                sizeData = BitConverter.GetBytes(data.Length - 8);
+                byte[] sizeData = BitConverter.GetBytes(data.Length - 8);
+                Array.Copy(sizeData, 0, data, 4, sizeData.Length);
             }
-            Array.Copy(sizeData, 0, data, isMp3 ? 6 : 4, sizeData.Length);
 
             try
             {
@@ -236,6 +229,22 @@ namespace Test_Script
             Array.Copy(data2, 0, newData, insertPos, data2.Length);
             Array.Copy(data1, insertPos, newData, data2.Length + insertPos, data1.Length - insertPos);
             return newData;
+        }
+
+        static bool IsContainAt(byte[] data1, byte[] data2, int offset)
+        {
+            if (data1.Length < data2.Length + offset)
+            {
+                return false;
+            }
+            for (int i = 0; i < data2.Length; i++)
+            {
+                if (data1[i + offset] != data2[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         static string GetBaseNoteName()
