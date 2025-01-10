@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<Titler xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" expandboundingbox="false" version="1.0">
+  <Enabled>true</Enabled>
+  <textnode visible="true" selected="true" tracking="{11}" linespacingscaler="{12}">
+    <transform>matrix(1 0 0 1 0 0)</transform>
+    <layouttransform>matrix(1 0 0 1 0 0)</layouttransform>
+    <Transform matrix="({9},0,0,0,0.75,0,0.75,1)" center="{10}" />
+    <gradientfill>
+      <Enabled>false</Enabled>
+      <Gradient>
+        <Points alternatetype="ScriptPortal.MediaSoftware.TextGen.CoreGraphics.XmlColorFloat,ScriptPortal.MediaSoftware.TextGen.CoreGraphics">
+          <element>
+            <key>
+              <double>0</double>
+            </key>
+            <value>
+              <XmlColorFloat color="1,0.9803922,0.9803922,0.9411765" />
+            </value>
+          </element>
+          <element>
+            <key>
+              <double>1</double>
+            </key>
+            <value>
+              <XmlColorFloat color="1,0.9294118,0.4627451,0.1529412" />
+            </value>
+          </element>
+        </Points>
+      </Gradient>
+    </gradientfill>
+    <effects xsi:type="GaussianBlur">
+      <Enabled>false</Enabled>
+      <HorizontalBlur>0</HorizontalBlur>
+      <VerticalBlur>0</VerticalBlur>
+    </effects>
+    <effects xsi:type="Glow">
+      <Enabled>false</Enabled>
+      <Amount>0.01</Amount>
+      <Color color="1,0.9882353,1,0.07450981" />
+      <InnerGlow>false</InnerGlow>
+    </effects>
+    <effects xsi:type="DropShadow">
+      <Enabled>{13}</Enabled>
+      <Amount>{17}</Amount>
+      <HorizontalOffset>{15}</HorizontalOffset>
+      <InnerShadow>false</InnerShadow>
+      <VerticalOffset>{16}</VerticalOffset>
+      <Color color="{14}" />
+    </effects>
+    <textsource>
+      <PixelsPerDip>1.25</PixelsPerDip>
+      <spans text="{0}" id="1">
+        <properties fontfamily="{1}" emsize="{2}" fontstyle="{3}" fontweight="{4}" line-alignment="{5}">
+          <style>
+            <ShapeNodeStyle fill="{6}" stroke="{7}" enabled="true" stroke-thickness="{8}" stroke-order="Under" />
+          </style>
+        </properties>
+      </spans>
+    </textsource>
+    <selectionrange start="0" length="1" />
+    <path enabled="false">
+      <Points>
+        <BezierPoint>
+          <X value="0" left="0" right="5.3999999999999995" />
+          <Y value="0" left="0" right="-5.3999999999999995" />
+        </BezierPoint>
+        <BezierPoint>
+          <X value="18" left="12.600000000000001" right="0" />
+          <Y value="0" left="5.3999999999999995" right="0" />
+        </BezierPoint>
+      </Points>
+    </path>
+  </textnode>
+  <timeline range="5">
+    <container binding="" description="" level="0">
+      <children binding="MetaTextNodes" description="" level="0" container="true">
+        <children binding="MetaTextNodes.[0]" description="{0}" level="1">
+          <range start="0" length="1" />
+          <cascade enabled="false" duration="0.2" alias="">
+            <delay-shape xsi:nil="true" />
+          </cascade>
+        </children>
+        <range start="0" length="1" />
+        <cascade enabled="false" duration="0.2" alias="">
+          <delay-shape xsi:nil="true" />
+        </cascade>
+      </children>
+      <range start="0" length="1" />
+      <cascade enabled="false" duration="0.2" alias="">
+        <delay-shape xsi:nil="true" />
+      </cascade>
+    </container>
+  </timeline>
+  <uisettings activesubpane="Transform" timelinevscroll="0" viewzoom="1">
+    <timelineview start="0" length="1" />
+    <viewoffset point="0,0">
+      <X>0</X>
+      <Y>0</Y>
+    </viewoffset>
+  </uisettings>
+</Titler>
