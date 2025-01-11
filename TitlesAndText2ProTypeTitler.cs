@@ -102,7 +102,7 @@ namespace Test_Script
                         {
                             MediaSize = vEvent.ActiveTake.Media.GetVideoStreamByIndex(0).Size,
                             MediaMilliseconds = vEvent.ActiveTake.Media.Length.ToMilliseconds(),
-                            Text = rtb.Text.Replace("\r\n","&#xA;").Replace("\n","&#xA;"),
+                            Text = rtb.Text,
                             FontName = rtb.SelectionFont.Name,
                             FontSize = rtb.SelectionFont.Size,
                             FontItalic = rtb.SelectionFont.Italic,
@@ -162,6 +162,10 @@ namespace Test_Script
             {
                 myReg.SetValue(presetName, filePath);
             }
+            if (!Directory.Exists(Path.GetDirectoryName(filePath)))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            }
             byte[] data = Encoding.UTF8.GetBytes(xmlString);
 
             byte[] lengthBytes = BitConverter.GetBytes(data.Length);
@@ -186,7 +190,7 @@ namespace Test_Script
             string xmlString = string.Format
             (
                 Encoding.UTF8.GetString(File.ReadAllBytes(baseXmlPath)),
-                properties.Text,
+                properties.Text.Replace("\r\n","&#xA;").Replace("\n","&#xA;"),
                 properties.FontName,
                 properties.FontSize / 10,
                 properties.FontItalic ? "Italic" : "Normal",
