@@ -11,7 +11,7 @@ namespace Test_Script
     public class Class
     {
         public const bool DO_POP_UP_WINDOW = true;
-        public const int ITEMS_PER_LINE = 5;
+        public const int ITEMS_PER_ROW = 4;
         public Vegas myVegas;
         public void Main(Vegas vegas)
         {
@@ -188,7 +188,7 @@ namespace Test_Script
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 GrowStyle = TableLayoutPanelGrowStyle.AddRows,
-                ColumnCount = ITEMS_PER_LINE
+                ColumnCount = ITEMS_PER_ROW
             };
             p.Controls.Add(l);
 
