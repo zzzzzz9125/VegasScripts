@@ -1,5 +1,6 @@
 using System;
-using System.Collections;
+using System.Text;
+using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
 
@@ -9,70 +10,126 @@ namespace Test_Script
 {
     public class Class
     {
+        public const bool DO_POP_UP_WINDOW = true;
+        public const int ITEMS_PER_LINE = 5;
         public Vegas myVegas;
         public void Main(Vegas vegas)
         {
             myVegas = vegas;
             myVegas.ResumePlaybackOnScriptExit = true;
-            Project project = myVegas.Project;
-            if (vegas.Project.Tracks.Count == 0)
+            if (myVegas.Project.Tracks.Count == 0)
             {
                 return;
             }
 
-            List<VideoEvent> selectList = new List<VideoEvent>();
+            List<VideoEvent> evs = new List<VideoEvent>();
 
-            foreach (Track myTrack in project.Tracks)
+            foreach (Track myTrack in myVegas.Project.Tracks)
             {
                 if (myTrack.IsVideo())
                 {
-                    foreach (TrackEvent evnt in myTrack.Events)
+                    foreach (TrackEvent ev in myTrack.Events)
                     {
-                        if (evnt.Selected)
+                        if (ev.Selected)
                         {
-                            VideoEvent vEvent = (VideoEvent) evnt;
-                            if (vEvent.ActiveTake.Media.IsGenerated())
+                            if (ev.ActiveTake != null && ev.ActiveTake.Media != null && ev.ActiveTake.Media.IsGenerated() && ev.ActiveTake.Media.Generator.PlugIn.IsOFX)
                             {
-                                selectList.Add(vEvent);
+                                evs.Add(ev as VideoEvent);
                             }
                         }
                     }
                 }
             }
 
-            foreach (VideoEvent vEvent in selectList)
+            Dictionary<string, List<string>> dicExclude = new Dictionary<string, List<string>>();
+
+            foreach (VideoEvent ev in evs)
             {
-                // vEvent.OpenMediaGeneratorUI();
-                Media sourceMedia = vEvent.ActiveTake.Media;
-                OFXEffect sourceOFX = GetOFXEffect(sourceMedia);
-                if (sourceOFX == null)
+                Effect ef = ev.ActiveTake.Media.Generator;
+                if (dicExclude.ContainsKey(ef.PlugIn.UniqueID))
                 {
                     continue;
                 }
-
-                bool isTAT = sourceMedia.Generator.PlugIn.UniqueID.ToLower().Contains("titlesandtext");
-
-                OFXStringParameter textParam = FindTextParameter(sourceOFX);
-
-                foreach (VideoEvent targetEvent in vEvent.Track.Events)
+                OFXEffect ofx = ef.OFXEffect;
+                List<string> exclude = new List<string>();
+                dicExclude.Add(ef.PlugIn.UniqueID, exclude);
+                if (!DO_POP_UP_WINDOW)
                 {
-                    if (targetEvent == vEvent)
+                    continue;
+                }
+                Dictionary<string, string> dicParameters = new Dictionary<string, string>();
+                
+                foreach (OFXParameter para in ofx.Parameters)
+                {
+                    string type = para.ParameterType.ToString();
+                    if (type == "Group" || type == "PushButton" || type == "16" || type == "Page")  // "16" is for "OfxParamTypeImage", which is not supported
+                    {
+                        continue;
+                    }
+                    string label = para.Label;
+                    string groupName = para.ParentName;
+                    if (!string.IsNullOrEmpty(groupName))
+                    {
+                        OFXParameter group = ofx.FindParameterByName(groupName);
+                        if (group != null)
+                        {
+                            label = string.Format("[{0}] {1}", group.Label, para.Label);
+                        }
+                    }
+                    dicParameters.Add(para.Name, label);
+                }
+                
+                if (!ShowWindow(ofx.Label, dicParameters, exclude))
+                {
+                    return;
+                }
+            }
+
+            foreach (VideoEvent ev in evs)
+            {
+                Media sourceMedia = ev.ActiveTake.Media;
+                Effect sourceEffect = sourceMedia.Generator;
+                OFXEffect sourceOFX = sourceEffect.OFXEffect;
+
+                bool isTAT = sourceEffect.PlugIn.UniqueID.ToLower().Contains("titlesandtext");
+
+                List<OFXStringParameter> textParas = FindTextParameters(sourceEffect);
+
+                foreach (VideoEvent targetEvent in ev.Track.Events)
+                {
+                    if (targetEvent == ev || targetEvent.ActiveTake == null || targetEvent.ActiveTake.Media == null || !targetEvent.ActiveTake.Media.IsGenerated())
                     {
                         continue;
                     }
 
                     Media targetMedia = targetEvent.ActiveTake.Media;
-                    OFXEffect targetOFX = GetOFXEffect(targetMedia);
-                    if (targetOFX == null || targetOFX.Label != sourceOFX.Label)
+                    Effect targetEffect = targetMedia.Generator;
+                    if (!targetEffect.PlugIn.IsOFX || sourceEffect.PlugIn.UniqueID != targetEffect.PlugIn.UniqueID)
                     {
                         continue;
                     }
 
+                    OFXEffect targetOFX = targetEffect.OFXEffect;
+
                     List<string> excludedParaNames = new List<string>();
 
-                    OFXStringParameter targetTextPara = FindTextParameter(targetOFX);
-                    if (textParam != null && targetTextPara != null)
+                    if (dicExclude.ContainsKey(sourceEffect.PlugIn.UniqueID))
                     {
+                        excludedParaNames = new List<string>(dicExclude[sourceEffect.PlugIn.UniqueID]);
+                    }
+
+                    foreach (OFXStringParameter textPara in textParas)
+                    {
+                        if (excludedParaNames.Contains(textPara.Name))
+                        {
+                            continue;
+                        }
+                        OFXStringParameter targetTextPara = targetOFX.FindParameterByName(textPara.Name) as OFXStringParameter;
+                        if (targetTextPara == null)
+                        {
+                            continue;
+                        }
+
                         string txt = targetTextPara.Value;
 
                         if (isTAT)
@@ -80,7 +137,7 @@ namespace Test_Script
                             RichTextBox rtb = new RichTextBox();
                             rtb.Rtf = txt;
                             txt = rtb.Text;
-                            rtb.Rtf = textParam.Value;
+                            rtb.Rtf = textPara.Value;
                             rtb.Text = txt;
                             txt = rtb.Rtf;
                         }
@@ -89,7 +146,8 @@ namespace Test_Script
                         excludedParaNames.Add(targetTextPara.Name);
                     }
 
-                    VideoStream sourceStream = (VideoStream) sourceMedia.Streams[0], targetStream = (VideoStream) targetMedia.Streams[0];
+
+                    VideoStream sourceStream = sourceMedia.GetVideoStreamByIndex(0), targetStream = targetMedia.GetVideoStreamByIndex(0);
                     targetStream.Size = sourceStream.Size;
                     targetStream.FieldOrder = sourceStream.FieldOrder;
                     targetStream.PixelAspectRatio = sourceStream.PixelAspectRatio;
@@ -102,40 +160,139 @@ namespace Test_Script
                 }
             }
         }
-        
-        public static OFXEffect GetOFXEffect(Media media)
+
+        public bool ShowWindow(string plugInName, Dictionary<string, string> dicParameters, List<string> exclude)
         {
-            if (media == null)
+            Form form = new Form
             {
-                return null;
-            }
+                ShowInTaskbar = false,
+                AutoSize = true,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Font = new Font("Arial", 9),
+                Text = "Transfer Subtitle Attributes",
+                FormBorderStyle = FormBorderStyle.FixedToolWindow,
+                StartPosition = FormStartPosition.CenterScreen,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
 
-            Effect generator = media.Generator;
-            if (generator == null)
+            Panel p = new Panel
             {
-                return null;
-            }
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            form.Controls.Add(p);
 
-            OFXEffect sourceOFX = generator.OFXEffect;
-            if (sourceOFX == null)
+            TableLayoutPanel l = new TableLayoutPanel
             {
-                return null;
-            }
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows,
+                ColumnCount = ITEMS_PER_LINE
+            };
+            p.Controls.Add(l);
 
-            return sourceOFX;
-        }
-
-        public static OFXStringParameter FindTextParameter(OFXEffect ofx)
-        {
-            // Compatible with other Text plugins, such as TextOFX (https://text.openfx.no/) and Textuler (https://textuler.io/)
-            foreach (OFXParameter para in ofx.Parameters)
+            Label label = new Label
             {
-                if (para.ParameterType == OFXParameterType.String && (para.Name.ToLower() == "text" || para.Name.ToLower() == "texts" || para.Name.ToLower() == "textmessage"))
+                Margin = new Padding(12, 12, 6, 6),
+                Text = string.Format("PlugIn Name: {0}", plugInName),
+                AutoSize = true
+            };
+            l.Controls.Add(label);
+            l.SetColumnSpan(label, l.ColumnCount);
+
+            List<CheckBox> ckbs = new List<CheckBox>();
+            foreach (string paraName in dicParameters.Keys)
+            {
+                CheckBox ckb = new CheckBox
                 {
-                    return (OFXStringParameter)para;
+                    Text = dicParameters[paraName],
+                    Margin = new Padding(6, 6, 6, 6),
+                    AutoSize = true,
+                    Checked = true,
+                    Tag = paraName
+                };
+                l.Controls.Add(ckb);
+                ckbs.Add(ckb);
+            }
+
+            FlowLayoutPanel panel = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Anchor = AnchorStyles.None,
+                Font = new Font("Arial", 8)
+            };
+            l.Controls.Add(panel);
+            l.SetColumnSpan(panel, l.ColumnCount);
+
+            Button ok = new Button
+            {
+                Text = "OK",
+                DialogResult = DialogResult.OK
+            };
+            panel.Controls.Add(ok);
+            form.AcceptButton = ok;
+
+            Button cancel = new Button
+            {
+                Text = "Cancel",
+                DialogResult = DialogResult.Cancel
+            };
+            panel.Controls.Add(cancel);
+            form.CancelButton = cancel;
+
+            DialogResult result = form.ShowDialog(myVegas.MainWindow);
+
+            foreach (CheckBox ckb in ckbs)
+            {
+                if (!ckb.Checked)
+                {
+                    exclude.Add(ckb.Tag as string);
                 }
             }
-            return null;
+
+            return result == DialogResult.OK;
+        }
+
+        public static List<OFXStringParameter> FindTextParameters(Effect ef)
+        {
+            List<OFXStringParameter> paras = new List<OFXStringParameter>();
+            if (!ef.PlugIn.IsOFX)
+            {
+                return paras;
+            }
+            // Compatible with other Text plugins, such as TextOFX (https://text.openfx.no/), Textuler (https://textuler.io/), OFX Clock (https://www.hlinke.de/dokuwiki/doku.php?id=en:vegas_pro_ofx) and Universe Typographic
+            foreach (OFXParameter para in ef.OFXEffect.Parameters)
+            {
+                if (para.ParameterType.ToString() != "String" || string.IsNullOrEmpty(para.Name))
+                {
+                    continue;
+                }
+
+                bool is_Universe_Text_Typographic_OFX = ef.PlugIn.UniqueID.Contains("Universe_Text_Typographic_OFX");
+                switch (para.Name.ToLower())
+                {
+                    case "text":
+                    case "texts":
+                    case "textmessage": // Textuler
+                    case "Dig Clock Free Format": // OFX Clock
+                        paras.Add(para as OFXStringParameter);
+                        break;
+
+                    case "68": // Universe Typographic
+                    case "116": // Universe Typographic
+                        if (is_Universe_Text_Typographic_OFX)
+                        {
+                            paras.Add(para as OFXStringParameter);
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+            return paras;
         }
 
         public static void CopyOFX(OFXEffect sourceOFX, OFXEffect targetOFX, bool isMediaGenerator = false, double adjust = 0, List<string> exclude = null)
