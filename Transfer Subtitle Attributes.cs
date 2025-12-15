@@ -6,9 +6,9 @@ using System.Collections.Generic;
 
 using ScriptPortal.Vegas;  // "ScriptPortal.Vegas" for Magix Vegas Pro 14 or above, "Sony.Vegas" for Sony Vegas Pro 13 or below
 
-namespace Test_Script
+namespace TransferSubtitleAttributes
 {
-    public class Class
+    public class MainClass
     {
         public const bool DO_POP_UP_WINDOW = true;
         public const int ITEMS_PER_ROW = 4;
@@ -631,7 +631,7 @@ public class EntryPoint
     public void FromVegas(Vegas vegas)
     //public void FromVegas(Vegas vegas, String scriptFile, XmlDocument scriptSettings, ScriptArgs args)
     {
-        Test_Script.Class test = new Test_Script.Class();
+        TransferSubtitleAttributes.MainClass test = new TransferSubtitleAttributes.MainClass();
         test.Main(vegas);
         Application.Exit();
     }
