@@ -195,7 +195,7 @@ namespace Test_Script
             Label label = new Label
             {
                 Margin = new Padding(12, 12, 6, 6),
-                Text = string.Format("PlugIn Name: {0}", plugInName),
+                Text = string.Format("PlugIn Name: {0}", string.IsNullOrEmpty(plugInName) ? "null" : plugInName.Replace("&", "&&")),
                 AutoSize = true
             };
             l.Controls.Add(label);
@@ -206,7 +206,7 @@ namespace Test_Script
             {
                 CheckBox ckb = new CheckBox
                 {
-                    Text = dicParameters[paraName],
+                    Text = string.IsNullOrEmpty(dicParameters[paraName]) ? "null" : dicParameters[paraName].Replace("&", "&&"),
                     Margin = new Padding(6, 6, 6, 6),
                     AutoSize = true,
                     Checked = true,
@@ -226,10 +226,50 @@ namespace Test_Script
             l.Controls.Add(panel);
             l.SetColumnSpan(panel, l.ColumnCount);
 
+            Button selectAll = new Button
+            {
+                Text = "Select All",
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.None
+            };
+            panel.Controls.Add(selectAll);
+
+            selectAll.Click += delegate (object o, EventArgs e)
+            {
+                foreach (CheckBox ckb in ckbs)
+                {
+                    ckb.Checked = true;
+                }
+            };
+
+            Button selectNone = new Button
+            {
+                Text = "Select None",
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.None
+            };
+            panel.Controls.Add(selectNone);
+
+            selectNone.Click += delegate (object o, EventArgs e)
+            {
+                foreach (CheckBox ckb in ckbs)
+                {
+                    ckb.Checked = false;
+                }
+            };
+
             Button ok = new Button
             {
                 Text = "OK",
-                DialogResult = DialogResult.OK
+                DialogResult = DialogResult.OK,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.None
             };
             panel.Controls.Add(ok);
             form.AcceptButton = ok;
@@ -237,7 +277,11 @@ namespace Test_Script
             Button cancel = new Button
             {
                 Text = "Cancel",
-                DialogResult = DialogResult.Cancel
+                DialogResult = DialogResult.Cancel,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.None
             };
             panel.Controls.Add(cancel);
             form.CancelButton = cancel;
