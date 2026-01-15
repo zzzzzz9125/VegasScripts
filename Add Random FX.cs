@@ -14,6 +14,8 @@ namespace AddRandomFX
         // Here're the default settings that you can modify before running the script.
         static readonly bool DO_SHOW_WINDOW = true; // true: Show settings window before running the script; false: Use the default settings directly.
 
+        static int FxCount = 1; // FX count for each target object.
+
         static int objectChoice = 0; // 0: Events, 1: Tracks, 2: Both
 
         // Regular expression. Ignore Case. Use ";" to separate. For exsample: "Color Grading;Stabiliz[e(ation)]".
@@ -138,7 +140,7 @@ namespace AddRandomFX
                         }
                     }
                     catch { }
-                } while (effectsCount >= effects.Count);
+                } while (effects.Count - effectsCount < FxCount);
             }
         }
 
@@ -213,6 +215,40 @@ namespace AddRandomFX
             ToolTip tt = new ToolTip();
 
             Label label = new Label
+            {
+                Margin = new Padding(12, 9, 6, 6),
+                Text = "FX Count",
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true
+            };
+            l.Controls.Add(label);
+
+            TextBox fxCountTextBox = new TextBox
+            {
+                AutoSize = true,
+                Margin = new Padding(6, 6, 6, 6),
+                Text = FxCount.ToString(),
+                Dock = DockStyle.Fill
+            };
+            l.Controls.Add(fxCountTextBox);
+
+            tt.SetToolTip(fxCountTextBox, "FX count for each target object.");
+
+            fxCountTextBox.MouseWheel += delegate (object o, MouseEventArgs e)
+            {
+                TextBox tb = o as TextBox;
+                int tmp;
+                if (int.TryParse(tb.Text, out tmp))
+                {
+                    tmp += e.Delta > 0 ? 1 : -1;
+                    if (tmp > 0)
+                    {
+                        tb.Text = tmp.ToString();
+                    }
+                }
+            };
+
+            label = new Label
             {
                 Margin = new Padding(12, 9, 6, 6),
                 Text = "To Selected",
@@ -354,6 +390,8 @@ namespace AddRandomFX
             form.CancelButton = cancel;
 
             DialogResult result = form.ShowDialog(myVegas.MainWindow);
+            int temp;
+            FxCount = int.TryParse(fxCountTextBox.Text, out temp) && temp > 0 ? temp : 1;
             objectChoice = cb.SelectedIndex;
             blackWhiteListString_Name = blackWhiteListTextBox_Name.Text;
             blackWhiteListString_UID = blackWhiteListTextBox_UID.Text;
