@@ -19,11 +19,11 @@ namespace AddRandomFX
         static int objectChoice = 0; // 0: Events, 1: Tracks, 2: Both
 
         // Regular expression. Ignore Case. Use ";" to separate. For exsample: "Color Grading;Stabiliz[e(ation)]".
-        // If you need to check the Video FX list, please refer to: http://zzzzzz9125.github.io/VegTips/videofxlist
+        // If you need to check the Video FX list, please refer to: https://zzzzzz9125.github.io/VegTips/videofxlist
         static string blackWhiteListString_Name = "";
 
         // Regular expression. Ignore Case. Use ";" to separate. For exsample: "colorgrading;stabiliz[e(ation)]".
-        // If you need to check the Video FX list, please refer to: http://zzzzzz9125.github.io/VegTips/videofxlist
+        // If you need to check the Video FX list, please refer to: https://zzzzzz9125.github.io/VegTips/videofxlist
         static string blackWhiteListString_UID = "colorgrading;stabiliz[e(ation)]";
 
         static bool blackWhiteList_Name = true; // true: Black List, false: White List.
@@ -302,13 +302,13 @@ namespace AddRandomFX
             };
             l.Controls.Add(blackWhiteListTextBox_Name);
 
-            tt.SetToolTip(blackWhiteListTextBox_Name, "Regular expression. Ignore Case. Use \";\" to separate. For exsample: \"Color Grading;Stabiliz[e(ation)]\".\nIf you want to modify the default value, you can edit the \".cs\" script file.\nIf you need to check the Video FX list, please refer to: http://zzzzzz9125.github.io/VegTips/videofxlist\nClick the TextBox with the mouse middle button to navigate to this webpage.");
+            tt.SetToolTip(blackWhiteListTextBox_Name, "Regular expression. Ignore Case. Use \";\" to separate. For exsample: \"Color Grading;Stabiliz[e(ation)]\".\nIf you want to modify the default value, you can edit the \".cs\" script file.\nIf you need to check the Video FX list, please refer to: https://zzzzzz9125.github.io/VegTips/videofxlist\nClick the TextBox with the mouse middle button to navigate to this webpage.");
 
             blackWhiteListTextBox_Name.MouseUp += delegate (object o, MouseEventArgs e)
             {
                 if (e.Button == MouseButtons.Middle)
                 {
-                    System.Diagnostics.Process.Start("http://zzzzzz9125.github.io/VegTips/videofxlist");
+                    System.Diagnostics.Process.Start("https://zzzzzz9125.github.io/VegTips/videofxlist");
                 }
             };
 
@@ -341,13 +341,13 @@ namespace AddRandomFX
             };
             l.Controls.Add(blackWhiteListTextBox_UID);
 
-            tt.SetToolTip(blackWhiteListTextBox_UID, "Regular expression. Ignore Case. Use \";\" to separate. For exsample: \"colorgrading;stabiliz[e(ation)]\".\nIf you want to modify the default value, you can edit the \".cs\" script file.\nIf you need to check the Video FX list, please refer to: http://zzzzzz9125.github.io/VegTips/videofxlist\nClick the TextBox with the mouse middle button to navigate to this webpage.");
+            tt.SetToolTip(blackWhiteListTextBox_UID, "Regular expression. Ignore Case. Use \";\" to separate. For exsample: \"colorgrading;stabiliz[e(ation)]\".\nIf you want to modify the default value, you can edit the \".cs\" script file.\nIf you need to check the Video FX list, please refer to: https://zzzzzz9125.github.io/VegTips/videofxlist\nClick the TextBox with the mouse middle button to navigate to this webpage.");
 
             blackWhiteListTextBox_UID.MouseUp += delegate (object o, MouseEventArgs e)
             {
                 if (e.Button == MouseButtons.Middle)
                 {
-                    System.Diagnostics.Process.Start("http://zzzzzz9125.github.io/VegTips/videofxlist");
+                    System.Diagnostics.Process.Start("https://zzzzzz9125.github.io/VegTips/videofxlist");
                 }
             };
 
