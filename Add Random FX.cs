@@ -77,41 +77,9 @@ namespace AddRandomFX
                 return;
             }
 
-            List<PlugInNode> filtered_NameOnly = new List<PlugInNode>(), filtered = new List<PlugInNode>();
-            
+            List<PlugInNode> filtered_NameOnly = PlugInNodeFilter.FilterNodes(l, blackWhiteListString_Name.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries), blackWhiteList_Name, true);
 
-            if (blackWhiteList_Name && string.IsNullOrEmpty(blackWhiteListString_Name))
-            {
-                filtered_NameOnly.AddRange(l);
-            }
-            else
-            {
-                foreach (string str in blackWhiteListString_Name.Split(';'))
-                {
-                    if (string.IsNullOrEmpty(str))
-                    {
-                        continue;
-                    }
-                    filtered_NameOnly.AddRange(l.FindAll(node => Regex.IsMatch(node.Name, str, RegexOptions.IgnoreCase) != blackWhiteList_Name));
-                }
-            }
-
-            if (blackWhiteList_UID && string.IsNullOrEmpty(blackWhiteListString_UID))
-            {
-                filtered.AddRange(filtered_NameOnly);
-            }
-            else
-            {
-                foreach (string str in blackWhiteListString_UID.Split(';'))
-                {
-                    if (string.IsNullOrEmpty(str))
-                    {
-                        continue;
-                    }
-                    filtered.AddRange(filtered_NameOnly.FindAll(node => Regex.IsMatch(node.UniqueID, str, RegexOptions.IgnoreCase) != blackWhiteList_UID));
-                }
-            }
-
+            List<PlugInNode> filtered = PlugInNodeFilter.FilterNodes(filtered_NameOnly, blackWhiteListString_UID.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries), blackWhiteList_UID, false);
             if (filtered.Count == 0)
             {
                 MessageBox.Show(myVegas.MainWindow, "No FX match the filter criteria.", "Add Random FX", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -397,6 +365,60 @@ namespace AddRandomFX
             blackWhiteListString_UID = blackWhiteListTextBox_UID.Text;
             randomPresets = randomPresetsCheckBox.Checked;
             return result == DialogResult.OK;
+        }
+    }
+
+    public class PlugInNodeFilter
+    {
+        public static List<PlugInNode> FilterNodes(List<PlugInNode> nodes, string[] blackWhiteListString, bool isBlackList, bool nameOrUID)
+        {
+            List<PlugInNode> result = new List<PlugInNode>();
+            
+            if (blackWhiteListString == null || blackWhiteListString.Length == 0)
+            {
+                if (isBlackList)
+                {
+                    result.AddRange(nodes);
+                }
+                return result;
+            }
+
+            List<Regex> regexPatterns = new List<Regex>();
+            foreach (string pattern in blackWhiteListString)
+            {
+                regexPatterns.Add(new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+            }
+            
+            foreach (PlugInNode node in nodes)
+            {
+                bool isMatch = false;
+                
+                foreach (Regex regex in regexPatterns)
+                {
+                    if (regex.IsMatch(nameOrUID ? node.Name : node.UniqueID))
+                    {
+                        isMatch = true;
+                        break;
+                    }
+                }
+                
+                if (isBlackList)
+                {
+                    if (!isMatch)
+                    {
+                        result.Add(node);
+                    }
+                }
+                else
+                {
+                    if (isMatch)
+                    {
+                        result.Add(node);
+                    }
+                }
+            }
+            
+            return result;
         }
     }
 }
